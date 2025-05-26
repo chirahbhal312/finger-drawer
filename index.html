@@ -2,120 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Canvas to AR via Model-Viewer</title>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/examples/jsm/exporters/GLTFExporter.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/exporters/GLTFExporter.js"
-      }
-    }
-  </script>
+  <title>Canvas Drawing to AR Plane</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
       margin: 0;
       overflow: hidden;
       height: 100%;
-      background: #222;
     }
 
-    #drawingCanvas {
+    canvas#drawingCanvas {
       position: absolute;
       top: 0;
       left: 0;
-      touch-action: none;
-      background-color: transparent;
       z-index: 1;
+      touch-action: none;
     }
 
     .controls {
       position: fixed;
       top: 10px;
       left: 10px;
-      background: rgba(255, 255, 255, 0.8);
-      padding: 10px;
-      border-radius: 10px;
       z-index: 2;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 8px;
       display: flex;
       gap: 10px;
-      flex-wrap: wrap;
       align-items: center;
     }
 
     button {
       padding: 5px 10px;
-      border: none;
-      background-color: #333;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    #modelContainer {
-      display: none;
-      width: 100vw;
-      height: 100vh;
-    }
-
-    model-viewer {
-      width: 100%;
-      height: 100%;
-      background: transparent;
     }
   </style>
+
+  <!-- Importmap and Three.js -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/examples/jsm/webxr/ARButton.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js"
+      }
+    }
+  </script>
 </head>
 <body>
   <div class="controls">
-    <label>
-      Color:
-      <input type="color" id="colorPicker" value="#000000" />
-    </label>
-    <label>
-      Brush size:
-      <input type="range" id="brushSize" min="1" max="50" value="5" />
-    </label>
-    <button id="exportARBtn">Export & View in AR</button>
+    <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
+    <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
+    <button id="enterAR">Draw → AR</button>
   </div>
 
   <canvas id="drawingCanvas"></canvas>
 
-  <div id="modelContainer">
-    <model-viewer id="modelViewer"
-      ar
-      ar-modes="scene-viewer quick-look webxr"
-      autoplay
-      camera-controls
-      alt="Canvas Drawing Plane in AR"
-      exposure="1"
-      shadow-intensity="1"
-    ></model-viewer>
-  </div>
-
   <script type="module">
     import * as THREE from 'three';
-    import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+    import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
+    // 🎨 Drawing Setup
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
-    const exportARBtn = document.getElementById('exportARBtn');
-
-    const modelViewer = document.getElementById('modelViewer');
-    const modelContainer = document.getElementById('modelContainer');
-
-    let drawing = false;
-    let lastX = 0, lastY = 0;
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
-
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
+
+    let drawing = false;
+    let lastX = 0, lastY = 0;
 
     function startDrawing(x, y) {
       drawing = true;
@@ -144,33 +103,100 @@
       startDrawing(touch.clientX, touch.clientY);
       e.preventDefault();
     });
+
     canvas.addEventListener('touchmove', e => {
       const touch = e.touches[0];
       drawLine(touch.clientX, touch.clientY);
       e.preventDefault();
     });
+
     canvas.addEventListener('touchend', () => drawing = false);
 
-    exportARBtn.addEventListener('click', () => {
-      const dataURL = canvas.toDataURL('image/png');
-      const loader = new THREE.TextureLoader();
-      loader.load(dataURL, (texture) => {
-        const scene = new THREE.Scene();
-        const aspect = canvas.height / canvas.width;
-        const geometry = new THREE.PlaneGeometry(1, 1 * aspect);
-        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const plane = new THREE.Mesh(geometry, material);
+    // 🚀 WebXR + Three.js AR
+    document.getElementById('enterAR').addEventListener('click', () => {
+      launchAR(canvas.toDataURL('image/png'));
+    });
+
+    function launchAR(dataURL) {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera();
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      const controller = renderer.xr.getController(0);
+      scene.add(controller);
+
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(dataURL, (texture) => {
+        let reticle;
+        const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)), planeMaterial);
+        plane.visible = false;
         scene.add(plane);
 
-        const exporter = new GLTFExporter();
-        exporter.parse(scene, glb => {
-          const blob = new Blob([glb], { type: 'model/gltf-binary' });
-          const url = URL.createObjectURL(blob);
-          modelViewer.src = url;
-          modelContainer.style.display = 'block';
-        }, { binary: true });
+        const hitTestSource = { current: null };
+        const hitTestSourceRequested = { current: false };
+
+        const reticleGeometry = new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2);
+        const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+        reticle.visible = false;
+        scene.add(reticle);
+
+        controller.addEventListener('select', () => {
+          if (reticle.visible) {
+            plane.position.copy(reticle.position);
+            plane.quaternion.copy(reticle.quaternion);
+            plane.visible = true;
+          }
+        });
+
+        renderer.setAnimationLoop((timestamp, frame) => {
+          if (frame) {
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            const session = renderer.xr.getSession();
+
+            if (!hitTestSourceRequested.current) {
+              session.requestReferenceSpace('viewer').then(viewerSpace => {
+                session.requestHitTestSource({ space: viewerSpace }).then(source => {
+                  hitTestSource.current = source;
+                });
+              });
+              session.addEventListener('end', () => {
+                hitTestSource.current = null;
+                hitTestSourceRequested.current = false;
+              });
+              hitTestSourceRequested.current = true;
+            }
+
+            if (hitTestSource.current) {
+              const hitTestResults = frame.getHitTestResults(hitTestSource.current);
+              if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const pose = hit.getPose(referenceSpace);
+                reticle.visible = true;
+                reticle.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+                reticle.quaternion.set(
+                  pose.transform.orientation.x,
+                  pose.transform.orientation.y,
+                  pose.transform.orientation.z,
+                  pose.transform.orientation.w
+                );
+              } else {
+                reticle.visible = false;
+              }
+            }
+          }
+
+          renderer.render(scene, camera);
+        });
       });
-    });
+    }
   </script>
 </body>
 </html>
