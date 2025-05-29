@@ -126,7 +126,7 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'plane-detection'] }));
 
       const controller = renderer.xr.getController(0);
       scene.add(controller);
