@@ -37,7 +37,6 @@
     }
   </style>
 
-  <!-- Importmap and Three.js -->
   <script type="importmap">
     {
       "imports": {
@@ -51,7 +50,7 @@
   <div class="controls">
     <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
     <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
-    <button id="enterAR">Enter AR</button>
+    <button id="enterAR">Live AR</button>
   </div>
 
   <canvas id="drawingCanvas"></canvas>
@@ -60,7 +59,6 @@
     import * as THREE from 'three';
     import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-    // 🎨 Drawing Setup
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
@@ -91,11 +89,7 @@
       ctx.lineTo(x, y);
       ctx.stroke();
       [lastX, lastY] = [x, y];
-
-      // Update the texture in AR
-      if (canvasTexture) {
-        canvasTexture.needsUpdate = true;
-      }
+      if (canvasTexture) canvasTexture.needsUpdate = true;
     }
 
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
@@ -117,15 +111,10 @@
 
     canvas.addEventListener('touchend', () => drawing = false);
 
-    // 🚀 WebXR + Three.js AR
+    // 🌟 AR Setup
     let canvasTexture;
-    let plane;
 
     document.getElementById('enterAR').addEventListener('click', () => {
-      launchAR();
-    });
-
-    function launchAR() {
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera();
 
@@ -133,30 +122,34 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
-
       document.body.appendChild(ARButton.createButton(renderer));
 
-      // Create a texture from the canvas
       canvasTexture = new THREE.CanvasTexture(canvas);
-      const planeMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true });
+      canvasTexture.needsUpdate = true;
 
-      // Create the plane with the same aspect ratio as the canvas
-      const aspectRatio = canvas.width / canvas.height;
-      plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5 * aspectRatio, 1.5), planeMaterial);
+      const planeMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true });
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.6, 0.6 * canvas.height / canvas.width),
+        planeMaterial
+      );
+      plane.visible = false;
       scene.add(plane);
 
-      renderer.xr.addEventListener('sessionstart', () => {
-        // Position the plane in front of the user
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
-        plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5)); // 1.5 meters ahead
+      const controller = renderer.xr.getController(0);
+      scene.add(controller);
+
+      controller.addEventListener('select', () => {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        plane.position.copy(camera.position).add(dir.multiplyScalar(1.5));
         plane.quaternion.copy(camera.quaternion);
+        plane.visible = true;
       });
 
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
-    }
+    });
   </script>
 </body>
 </html>
