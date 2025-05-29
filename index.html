@@ -126,7 +126,7 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer, { optionalFeatures: ['dom-overlay'], domOverlay: {root: document.body} }));
+      document.body.appendChild(ARButton.createButton(renderer));
 
       const controller = renderer.xr.getController(0);
       scene.add(controller);
