@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Canvas Drawing to AR Plane</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -55,159 +55,148 @@
   </div>
 
   <canvas id="drawingCanvas"></canvas>
-<!-- Highlight: Key changes are marked with 🔧 -->
-<script type="module">
-  import * as THREE from 'three';
-  import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-  const canvas = document.getElementById('drawingCanvas');
-  const ctx = canvas.getContext('2d');
-  const colorPicker = document.getElementById('colorPicker');
-  const brushSize = document.getElementById('brushSize');
+  <script type="module">
+    import * as THREE from 'three';
+    import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+    // 🎨 Drawing Setup
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    const colorPicker = document.getElementById('colorPicker');
+    const brushSize = document.getElementById('brushSize');
 
-  let drawing = false;
-  let lastX = 0, lastY = 0;
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-  function startDrawing(x, y) {
-    drawing = true;
-    [lastX, lastY] = [x, y];
-  }
+    let drawing = false;
+    let lastX = 0, lastY = 0;
 
-  function drawLine(x, y) {
-    if (!drawing) return;
-    ctx.strokeStyle = colorPicker.value;
-    ctx.lineWidth = brushSize.value;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    [lastX, lastY] = [x, y];
-  }
+    function startDrawing(x, y) {
+      drawing = true;
+      [lastX, lastY] = [x, y];
+    }
 
-  canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
-  canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
-  canvas.addEventListener('mouseup', () => drawing = false);
-  canvas.addEventListener('mouseout', () => drawing = false);
+    function drawLine(x, y) {
+      if (!drawing) return;
+      ctx.strokeStyle = colorPicker.value;
+      ctx.lineWidth = brushSize.value;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      [lastX, lastY] = [x, y];
+    }
 
-  canvas.addEventListener('touchstart', e => {
-    const touch = e.touches[0];
-    startDrawing(touch.clientX, touch.clientY);
-    e.preventDefault();
-  });
+    canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
+    canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseout', () => drawing = false);
 
-  canvas.addEventListener('touchmove', e => {
-    const touch = e.touches[0];
-    drawLine(touch.clientX, touch.clientY);
-    e.preventDefault();
-  });
+    canvas.addEventListener('touchstart', e => {
+      const touch = e.touches[0];
+      startDrawing(touch.clientX, touch.clientY);
+      e.preventDefault();
+    });
 
-  canvas.addEventListener('touchend', () => drawing = false);
+    canvas.addEventListener('touchmove', e => {
+      const touch = e.touches[0];
+      drawLine(touch.clientX, touch.clientY);
+      e.preventDefault();
+    });
 
-  document.getElementById('enterAR').addEventListener('click', () => {
-    const imageData = canvas.toDataURL('image/png');
-    startAR(imageData);
-  });
+    canvas.addEventListener('touchend', () => drawing = false);
 
-  function startAR(dataURL) {
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera();
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    document.body.appendChild(renderer.domElement);
+    // 🚀 WebXR + Three.js AR
+    document.getElementById('enterAR').addEventListener('click', () => {
+      launchAR(canvas.toDataURL('image/png'));
+    });
 
-    // 🔧 FIX: Only use hit-test and dom-overlay (no plane-detection)
-    document.body.appendChild(ARButton.createButton(renderer, {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['dom-overlay'],
-      domOverlay: { root: document.body }
-    }));
+    function launchAR(dataURL) {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera();
 
-    const controller = renderer.xr.getController(0);
-    scene.add(controller);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
 
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(dataURL, (texture) => {
-      const aspect = canvas.height / canvas.width;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * aspect), material);
-      plane.visible = false;
-      scene.add(plane);
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-      const reticle = new THREE.Mesh(
-        new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-      );
-      reticle.visible = false;
-      scene.add(reticle);
+      const controller = renderer.xr.getController(0);
+      scene.add(controller);
 
-      const hitTestSource = { current: null };
-      const hitTestSourceRequested = { current: false };
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(dataURL, (texture) => {
+        let reticle;
+        const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)), planeMaterial);
+        plane.visible = false;
+        scene.add(plane);
 
-      controller.addEventListener('select', () => {
-        if (reticle.visible) {
-          plane.position.copy(reticle.position);
-          plane.quaternion.copy(reticle.quaternion);
-          plane.visible = true;
-        }
-      });
+        const hitTestSource = { current: null };
+        const hitTestSourceRequested = { current: false };
 
-      renderer.setAnimationLoop((timestamp, frame) => {
-        if (frame) {
-          const referenceSpace = renderer.xr.getReferenceSpace();
-          const session = renderer.xr.getSession();
+        const reticleGeometry = new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2);
+        const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+        reticle.visible = false;
+        scene.add(reticle);
 
-          if (!hitTestSourceRequested.current) {
-            session.requestReferenceSpace('viewer').then(viewerSpace => {
-              session.requestHitTestSource({ space: viewerSpace }).then(source => {
-                hitTestSource.current = source;
-              });
-            });
-            session.addEventListener('end', () => {
-              hitTestSource.current = null;
-              hitTestSourceRequested.current = false;
-            });
-            hitTestSourceRequested.current = true;
+        controller.addEventListener('select', () => {
+          if (reticle.visible) {
+            plane.position.copy(reticle.position);
+            plane.quaternion.copy(reticle.quaternion);
+            plane.visible = true;
           }
+        });
 
-          if (hitTestSource.current) {
-            const hitTestResults = frame.getHitTestResults(hitTestSource.current);
-            if (hitTestResults.length > 0) {
-              const hit = hitTestResults[0];
-              const pose = hit.getPose(referenceSpace);
-              if (pose) {
+        renderer.setAnimationLoop((timestamp, frame) => {
+          if (frame) {
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            const session = renderer.xr.getSession();
+
+            if (!hitTestSourceRequested.current) {
+              session.requestReferenceSpace('viewer').then(viewerSpace => {
+                session.requestHitTestSource({ space: viewerSpace }).then(source => {
+                  hitTestSource.current = source;
+                });
+              });
+              session.addEventListener('end', () => {
+                hitTestSource.current = null;
+                hitTestSourceRequested.current = false;
+              });
+              hitTestSourceRequested.current = true;
+            }
+
+            if (hitTestSource.current) {
+              const hitTestResults = frame.getHitTestResults(hitTestSource.current);
+              if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const pose = hit.getPose(referenceSpace);
                 reticle.visible = true;
-                reticle.position.set(
-                  pose.transform.position.x,
-                  pose.transform.position.y,
-                  pose.transform.position.z
-                );
+                reticle.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
                 reticle.quaternion.set(
                   pose.transform.orientation.x,
                   pose.transform.orientation.y,
                   pose.transform.orientation.z,
                   pose.transform.orientation.w
                 );
+              } else {
+                reticle.visible = false;
               }
-            } else {
-              reticle.visible = false;
             }
           }
-        }
 
-        renderer.render(scene, camera);
+          renderer.render(scene, camera);
+        });
       });
-    });
-  }
-</script>
-
+    }
+  </script>
 </body>
 </html>
