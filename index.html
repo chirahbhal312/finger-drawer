@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Canvas Drawing to AR Plane</title>
+  <title>Canvas Drawing to AR Air Placement</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
@@ -126,73 +126,27 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'plane detection'], optionalFeatures: ['dom-overlay'], domOverlay: {root: document.body} }));
+      document.body.appendChild(ARButton.createButton(renderer, { optionalFeatures: ['dom-overlay'], domOverlay: {root: document.body} }));
 
       const controller = renderer.xr.getController(0);
       scene.add(controller);
 
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load(dataURL, (texture) => {
-        let reticle;
         const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)), planeMaterial);
         plane.visible = false;
         scene.add(plane);
 
-        const hitTestSource = { current: null };
-        const hitTestSourceRequested = { current: false };
-
-        const reticleGeometry = new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2);
-        const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
-        reticle.visible = false;
-        scene.add(reticle);
-
         controller.addEventListener('select', () => {
-          if (reticle.visible) {
-            plane.position.copy(reticle.position);
-            plane.quaternion.copy(reticle.quaternion);
-            plane.visible = true;
-          }
+          const cameraDirection = new THREE.Vector3();
+          camera.getWorldDirection(cameraDirection);
+          plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5)); // 1.5 meters ahead
+          plane.quaternion.copy(camera.quaternion);
+          plane.visible = true;
         });
 
-        renderer.setAnimationLoop((timestamp, frame) => {
-          if (frame) {
-            const referenceSpace = renderer.xr.getReferenceSpace();
-            const session = renderer.xr.getSession();
-
-            if (!hitTestSourceRequested.current) {
-              session.requestReferenceSpace('viewer').then(viewerSpace => {
-                session.requestHitTestSource({ space: viewerSpace }).then(source => {
-                  hitTestSource.current = source;
-                });
-              });
-              session.addEventListener('end', () => {
-                hitTestSource.current = null;
-                hitTestSourceRequested.current = false;
-              });
-              hitTestSourceRequested.current = true;
-            }
-
-            if (hitTestSource.current) {
-              const hitTestResults = frame.getHitTestResults(hitTestSource.current);
-              if (hitTestResults.length > 0) {
-                const hit = hitTestResults[0];
-                const pose = hit.getPose(referenceSpace);
-                reticle.visible = true;
-                reticle.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
-                reticle.quaternion.set(
-                  pose.transform.orientation.x,
-                  pose.transform.orientation.y,
-                  pose.transform.orientation.z,
-                  pose.transform.orientation.w
-                );
-              } else {
-                reticle.visible = false;
-              }
-            }
-          }
-
+        renderer.setAnimationLoop(() => {
           renderer.render(scene, camera);
         });
       });
