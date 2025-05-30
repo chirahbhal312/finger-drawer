@@ -71,6 +71,7 @@
       <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
       <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
       <button id="enterAR">Draw → AR</button>
+      <button id="clearCanvas">Clear</button>
     </div>
 
     <canvas id="drawingCanvas"></canvas>
@@ -131,7 +132,11 @@
 
     canvas.addEventListener('touchend', () => drawing = false);
 
-    // Initialize AR scene
+    document.getElementById('clearCanvas').addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // AR Setup
     let scene, camera, renderer, controller;
     let currentMaterial = null;
 
