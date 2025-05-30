@@ -95,8 +95,12 @@
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
-    let isDrawingUIVisible = true; // 🔄 Track if drawing UI is visible
 
+    // Flags to manage UI and placement logic
+    let isDrawingUIVisible = true;
+    let isNewARDrawingReady = false;
+
+    // Resize canvas to window
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -124,13 +128,13 @@
       [lastX, lastY] = [x, y];
     }
 
-    // Mouse events
+    // Mouse Events
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
     canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseout', () => drawing = false);
 
-    // Touch events
+    // Touch Events
     canvas.addEventListener('touchstart', e => {
       const touch = e.touches[0];
       startDrawing(touch.clientX, touch.clientY);
@@ -143,12 +147,12 @@
     });
     canvas.addEventListener('touchend', () => drawing = false);
 
-    // Clear button
+    // Clear Canvas
     document.getElementById('clearCanvas').addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
-    // AR setup
+    // AR Setup
     let scene, camera, renderer, controller;
     let currentMaterial = null;
 
@@ -174,8 +178,9 @@
       scene.add(controller);
 
       controller.addEventListener('select', () => {
-        // ⛔ Skip placing object if drawing UI is active
-        if (isDrawingUIVisible || !currentMaterial) return;
+        // 🔒 Block placement if UI is visible and no new drawing was just made
+        if (isDrawingUIVisible && !isNewARDrawingReady) return;
+        if (!currentMaterial) return;
 
         const aspect = canvas.width / canvas.height;
         const geometry = new THREE.PlaneGeometry(0.4, 0.4 / aspect);
@@ -186,6 +191,9 @@
         plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
         plane.quaternion.copy(camera.quaternion);
         scene.add(plane);
+
+        // ✅ Reset placement flag after use
+        isNewARDrawingReady = false;
       });
 
       renderer.setAnimationLoop(() => {
@@ -193,17 +201,18 @@
       });
     }
 
-    // Load canvas as texture
+    // Load canvas to AR texture & allow one placement
     document.getElementById('enterAR').addEventListener('click', () => {
       const dataURL = canvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
 
       textureLoader.load(dataURL, (texture) => {
         currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        isNewARDrawingReady = true;
       });
     });
 
-    // Toggle drawing UI and update AR interaction state
+    // Toggle drawing UI & update flag
     const hamburger = document.getElementById('hamburger');
     const drawingUI = document.getElementById('drawingUI');
     hamburger.addEventListener('click', () => {
