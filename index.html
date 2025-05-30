@@ -11,6 +11,22 @@
       height: 100%;
     }
 
+    .hamburger {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 28px;
+      z-index: 3;
+      background: rgba(255,255,255,0.9);
+      padding: 5px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #drawingUI.hidden {
+      display: none;
+    }
+
     canvas#drawingCanvas {
       position: absolute;
       top: 0;
@@ -47,13 +63,18 @@
   </script>
 </head>
 <body>
-  <div class="controls">
-    <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
-    <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
-    <button id="enterAR">Draw → AR</button>
-  </div>
 
-  <canvas id="drawingCanvas"></canvas>
+  <div class="hamburger" id="hamburger">☰</div>
+
+  <div id="drawingUI">
+    <div class="controls">
+      <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
+      <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
+      <button id="enterAR">Draw → AR</button>
+    </div>
+
+    <canvas id="drawingCanvas"></canvas>
+  </div>
 
   <script type="module">
     import * as THREE from 'three';
@@ -123,7 +144,6 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // Create AR button and store it
       const arButton = ARButton.createButton(renderer, {
         requiredFeatures: ['hit-test'],
         optionalFeatures: ['dom-overlay'],
@@ -131,7 +151,6 @@
       });
       document.body.appendChild(arButton);
 
-      // Hide AR button when session starts
       renderer.xr.addEventListener('sessionstart', () => {
         arButton.style.display = 'none';
       });
@@ -161,6 +180,14 @@
         });
       });
     }
+
+    // Toggle drawing UI with hamburger menu
+    const hamburger = document.getElementById('hamburger');
+    const drawingUI = document.getElementById('drawingUI');
+
+    hamburger.addEventListener('click', () => {
+      drawingUI.classList.toggle('hidden');
+    });
   </script>
 </body>
 </html>
