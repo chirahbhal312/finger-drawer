@@ -44,17 +44,14 @@
       padding: 10px;
       border-radius: 8px;
       display: flex;
+      flex-direction: column;
       gap: 10px;
-      align-items: center;
     }
 
     .controls .row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 5px;
-}
-
+      display: flex;
+      gap: 10px;
+    }
 
     button {
       padding: 5px 10px;
@@ -78,18 +75,15 @@
   <!-- Drawing UI panel -->
   <div id="drawingUI">
     <div class="controls">
-  <div class="row">
-    <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
-    <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
-    <button id="enterAR">Draw → AR</button>
-  </div>
-  <div class="row">
-    <button id="clearCanvas">Clear</button>
-  </div>
-</div>
-
-
-    <!-- Canvas for drawing -->
+      <div class="row">
+        <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
+        <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
+        <button id="enterAR">Draw → AR</button>
+      </div>
+      <div class="row">
+        <button id="clearCanvas">Clear</button>
+      </div>
+    </div>
     <canvas id="drawingCanvas"></canvas>
   </div>
 
@@ -101,8 +95,8 @@
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
+    let isDrawingUIVisible = true; // 🔄 Track if drawing UI is visible
 
-    // Resize canvas to fill the window
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -130,33 +124,31 @@
       [lastX, lastY] = [x, y];
     }
 
-    // Mouse drawing
+    // Mouse events
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
     canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseout', () => drawing = false);
 
-    // Touch drawing
+    // Touch events
     canvas.addEventListener('touchstart', e => {
       const touch = e.touches[0];
       startDrawing(touch.clientX, touch.clientY);
       e.preventDefault();
     });
-
     canvas.addEventListener('touchmove', e => {
       const touch = e.touches[0];
       drawLine(touch.clientX, touch.clientY);
       e.preventDefault();
     });
-
     canvas.addEventListener('touchend', () => drawing = false);
 
-    // 🔄 Clear canvas when Clear button is clicked
+    // Clear button
     document.getElementById('clearCanvas').addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
-    // === AR STUFF ===
+    // AR setup
     let scene, camera, renderer, controller;
     let currentMaterial = null;
 
@@ -182,7 +174,8 @@
       scene.add(controller);
 
       controller.addEventListener('select', () => {
-        if (!currentMaterial) return;
+        // ⛔ Skip placing object if drawing UI is active
+        if (isDrawingUIVisible || !currentMaterial) return;
 
         const aspect = canvas.width / canvas.height;
         const geometry = new THREE.PlaneGeometry(0.4, 0.4 / aspect);
@@ -200,7 +193,7 @@
       });
     }
 
-    // 🧲 Load canvas as a texture for AR placement
+    // Load canvas as texture
     document.getElementById('enterAR').addEventListener('click', () => {
       const dataURL = canvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
@@ -210,11 +203,12 @@
       });
     });
 
-    // 🍔 Toggle drawing UI
+    // Toggle drawing UI and update AR interaction state
     const hamburger = document.getElementById('hamburger');
     const drawingUI = document.getElementById('drawingUI');
     hamburger.addEventListener('click', () => {
       drawingUI.classList.toggle('hidden');
+      isDrawingUIVisible = !drawingUI.classList.contains('hidden');
     });
   </script>
 </body>
