@@ -37,7 +37,6 @@
     }
   </style>
 
-  <!-- Importmap and Three.js -->
   <script type="importmap">
     {
       "imports": {
@@ -60,7 +59,6 @@
     import * as THREE from 'three';
     import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-    // 🎨 Drawing Setup
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
@@ -95,7 +93,10 @@
 
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
     canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
-    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseup', () => {
+      drawing = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
     canvas.addEventListener('mouseout', () => drawing = false);
 
     canvas.addEventListener('touchstart', e => {
@@ -110,9 +111,11 @@
       e.preventDefault();
     });
 
-    canvas.addEventListener('touchend', () => drawing = false);
+    canvas.addEventListener('touchend', () => {
+      drawing = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
 
-    // 🚀 WebXR + Three.js AR
     document.getElementById('enterAR').addEventListener('click', () => {
       launchAR(canvas.toDataURL('image/png'));
     });
