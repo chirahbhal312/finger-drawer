@@ -70,6 +70,7 @@
     <div class="controls">
       <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
       <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
+      <button id="enterAR">Draw → AR</button>
     </div>
 
     <canvas id="drawingCanvas"></canvas>
@@ -128,68 +129,56 @@
       e.preventDefault();
     });
 
-    // AR-related variables
-    let arInitialized = false;
-    let arRenderer, arScene, arCamera, arController, arMaterial;
+    canvas.addEventListener('touchend', () => drawing = false);
 
-    canvas.addEventListener('touchend', () => {
-      drawing = false;
-      const dataURL = canvas.toDataURL('image/png');
-      if (!arInitialized) {
-        launchAR(dataURL);
-        setTimeout(() => placeInAR(), 3000); // Wait for AR session to initialize
-      } else {
-        placeInAR();
-      }
+    document.getElementById('enterAR').addEventListener('click', () => {
+      launchAR(canvas.toDataURL('image/png'));
     });
 
     function launchAR(dataURL) {
-      arScene = new THREE.Scene();
-      arCamera = new THREE.PerspectiveCamera();
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera();
 
-      arRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      arRenderer.setSize(window.innerWidth, window.innerHeight);
-      arRenderer.xr.enabled = true;
-      document.body.appendChild(arRenderer.domElement);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
 
-      const arButton = ARButton.createButton(arRenderer, {
+      const arButton = ARButton.createButton(renderer, {
         requiredFeatures: ['hit-test'],
         optionalFeatures: ['dom-overlay'],
         domOverlay: { root: document.body }
       });
       document.body.appendChild(arButton);
 
-      arRenderer.xr.addEventListener('sessionstart', () => {
+      renderer.xr.addEventListener('sessionstart', () => {
         arButton.style.display = 'none';
-        arInitialized = true;
       });
 
-      arController = arRenderer.xr.getController(0);
-      arScene.add(arController);
+      const controller = renderer.xr.getController(0);
+      scene.add(controller);
 
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load(dataURL, (texture) => {
-        arMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const baseMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
 
-        arRenderer.setAnimationLoop(() => {
-          arRenderer.render(arScene, arCamera);
+        controller.addEventListener('select', () => {
+          const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)),
+            baseMaterial.clone()
+          );
+
+          const cameraDirection = new THREE.Vector3();
+          camera.getWorldDirection(cameraDirection);
+          plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
+          plane.quaternion.copy(camera.quaternion);
+          scene.add(plane);
+        });
+
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
         });
       });
-    }
-
-    function placeInAR() {
-      if (!arInitialized || !arMaterial) return;
-
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)),
-        arMaterial.clone()
-      );
-
-      const cameraDirection = new THREE.Vector3();
-      arCamera.getWorldDirection(cameraDirection);
-      plane.position.copy(arCamera.position).add(cameraDirection.multiplyScalar(1.5));
-      plane.quaternion.copy(arCamera.quaternion);
-      arScene.add(plane);
     }
 
     // Toggle drawing UI with hamburger menu
