@@ -73,12 +73,10 @@
 
     let drawing = false;
     let lastX = 0, lastY = 0;
-    let hasPlaced = false;
 
     function startDrawing(x, y) {
       drawing = true;
       [lastX, lastY] = [x, y];
-      hasPlaced = false; // Reset AR placement when drawing starts
     }
 
     function drawLine(x, y) {
@@ -136,22 +134,19 @@
 
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load(dataURL, (texture) => {
-        const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)), planeMaterial);
-        plane.visible = false;
-        scene.add(plane);
+        const baseMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
 
         controller.addEventListener('select', () => {
-          if (hasPlaced) return;
-          hasPlaced = true;
+          const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)),
+            baseMaterial.clone()
+          );
 
           const cameraDirection = new THREE.Vector3();
           camera.getWorldDirection(cameraDirection);
           plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
           plane.quaternion.copy(camera.quaternion);
-          plane.visible = true;
-
-          ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas AFTER placement
+          scene.add(plane);
         });
 
         renderer.setAnimationLoop(() => {
