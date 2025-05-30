@@ -73,10 +73,12 @@
 
     let drawing = false;
     let lastX = 0, lastY = 0;
+    let hasPlaced = false;
 
     function startDrawing(x, y) {
       drawing = true;
       [lastX, lastY] = [x, y];
+      hasPlaced = false; // Reset AR placement when drawing starts
     }
 
     function drawLine(x, y) {
@@ -93,10 +95,7 @@
 
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
     canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
-    canvas.addEventListener('mouseup', () => {
-      drawing = false;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
+    canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseout', () => drawing = false);
 
     canvas.addEventListener('touchstart', e => {
@@ -111,10 +110,7 @@
       e.preventDefault();
     });
 
-    canvas.addEventListener('touchend', () => {
-      drawing = false;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
+    canvas.addEventListener('touchend', () => drawing = false);
 
     document.getElementById('enterAR').addEventListener('click', () => {
       launchAR(canvas.toDataURL('image/png'));
@@ -146,11 +142,16 @@
         scene.add(plane);
 
         controller.addEventListener('select', () => {
+          if (hasPlaced) return;
+          hasPlaced = true;
+
           const cameraDirection = new THREE.Vector3();
           camera.getWorldDirection(cameraDirection);
           plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
           plane.quaternion.copy(camera.quaternion);
           plane.visible = true;
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas AFTER placement
         });
 
         renderer.setAnimationLoop(() => {
