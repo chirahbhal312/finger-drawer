@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Canvas Drawing to AR Air Placement</title>
+  <title>Canvas Drawing to AR Placement</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
@@ -131,15 +131,17 @@
 
     canvas.addEventListener('touchend', () => drawing = false);
 
-    document.getElementById('enterAR').addEventListener('click', () => {
-      launchAR(canvas.toDataURL('image/png'));
-    });
+    // Initialize AR scene
+    let scene, camera, renderer, controller;
+    let currentMaterial = null;
 
-    function launchAR(dataURL) {
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera();
+    initAR();
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    function initAR() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
@@ -151,35 +153,36 @@
       });
       document.body.appendChild(arButton);
 
-      renderer.xr.addEventListener('sessionstart', () => {
-        arButton.style.display = 'none';
-      });
-
-      const controller = renderer.xr.getController(0);
+      controller = renderer.xr.getController(0);
       scene.add(controller);
 
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(dataURL, (texture) => {
-        const baseMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      controller.addEventListener('select', () => {
+        if (!currentMaterial) return;
 
-        controller.addEventListener('select', () => {
-          const plane = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.4, 0.4 * (canvas.height / canvas.width)),
-            baseMaterial.clone()
-          );
+        const aspect = canvas.width / canvas.height;
+        const geometry = new THREE.PlaneGeometry(0.4, 0.4 / aspect);
+        const plane = new THREE.Mesh(geometry, currentMaterial.clone());
 
-          const cameraDirection = new THREE.Vector3();
-          camera.getWorldDirection(cameraDirection);
-          plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
-          plane.quaternion.copy(camera.quaternion);
-          scene.add(plane);
-        });
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
+        plane.quaternion.copy(camera.quaternion);
+        scene.add(plane);
+      });
 
-        renderer.setAnimationLoop(() => {
-          renderer.render(scene, camera);
-        });
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
       });
     }
+
+    document.getElementById('enterAR').addEventListener('click', () => {
+      const dataURL = canvas.toDataURL('image/png');
+      const textureLoader = new THREE.TextureLoader();
+
+      textureLoader.load(dataURL, (texture) => {
+        currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      });
+    });
 
     // Toggle drawing UI with hamburger menu
     const hamburger = document.getElementById('hamburger');
