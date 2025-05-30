@@ -64,16 +64,20 @@
 </head>
 <body>
 
+  <!-- Hamburger menu to toggle the drawing UI -->
   <div class="hamburger" id="hamburger">☰</div>
 
+  <!-- Drawing UI panel -->
   <div id="drawingUI">
     <div class="controls">
       <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
       <label>Brush: <input type="range" id="brushSize" min="1" max="50" value="5"></label>
       <button id="enterAR">Draw → AR</button>
+      <!-- 👇 New button to clear the canvas -->
       <button id="clearCanvas">Clear</button>
     </div>
 
+    <!-- Canvas for drawing -->
     <canvas id="drawingCanvas"></canvas>
   </div>
 
@@ -86,6 +90,7 @@
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
 
+    // Resize canvas to fill the window
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -113,11 +118,13 @@
       [lastX, lastY] = [x, y];
     }
 
+    // Mouse drawing
     canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
     canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
     canvas.addEventListener('mouseup', () => drawing = false);
     canvas.addEventListener('mouseout', () => drawing = false);
 
+    // Touch drawing
     canvas.addEventListener('touchstart', e => {
       const touch = e.touches[0];
       startDrawing(touch.clientX, touch.clientY);
@@ -132,11 +139,12 @@
 
     canvas.addEventListener('touchend', () => drawing = false);
 
+    // 🔄 Clear canvas when Clear button is clicked
     document.getElementById('clearCanvas').addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
-    // AR Setup
+    // === AR STUFF ===
     let scene, camera, renderer, controller;
     let currentMaterial = null;
 
@@ -180,6 +188,7 @@
       });
     }
 
+    // 🧲 Load canvas as a texture for AR placement
     document.getElementById('enterAR').addEventListener('click', () => {
       const dataURL = canvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
@@ -189,10 +198,9 @@
       });
     });
 
-    // Toggle drawing UI with hamburger menu
+    // 🍔 Toggle drawing UI
     const hamburger = document.getElementById('hamburger');
     const drawingUI = document.getElementById('drawingUI');
-
     hamburger.addEventListener('click', () => {
       drawingUI.classList.toggle('hidden');
     });
