@@ -123,11 +123,18 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer, {
+      // Create AR button and store it
+      const arButton = ARButton.createButton(renderer, {
         requiredFeatures: ['hit-test'],
         optionalFeatures: ['dom-overlay'],
         domOverlay: { root: document.body }
-      }));
+      });
+      document.body.appendChild(arButton);
+
+      // Hide AR button when session starts
+      renderer.xr.addEventListener('sessionstart', () => {
+        arButton.style.display = 'none';
+      });
 
       const controller = renderer.xr.getController(0);
       scene.add(controller);
