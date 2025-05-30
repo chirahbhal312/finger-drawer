@@ -126,7 +126,11 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer));
+      document.body.appendChild(ARButton.createButton(renderer, {
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: document.body }
+      }));
 
       const controller = renderer.xr.getController(0);
       scene.add(controller);
@@ -141,7 +145,7 @@
         controller.addEventListener('select', () => {
           const cameraDirection = new THREE.Vector3();
           camera.getWorldDirection(cameraDirection);
-          plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5)); // 1.5 meters ahead
+          plane.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
           plane.quaternion.copy(camera.quaternion);
           plane.visible = true;
         });
