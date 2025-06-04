@@ -24,7 +24,7 @@
       cursor: pointer;
     }
 
-    #drawingUI.hidden {
+    .hidden {
       display: none;
     }
 
@@ -70,7 +70,7 @@
 </head>
 <body>
 
-  <div class="hamburger" id="hamburger">☰</div>
+  <div class="hamburger hidden" id="hamburger">☰</div>
 
   <div id="drawingUI" class="hidden">
     <div class="controls">
@@ -204,10 +204,12 @@
 
       renderer.xr.addEventListener('sessionstart', () => {
         drawingUI.classList.remove('hidden');
+        hamburger.classList.remove('hidden');
       });
 
       renderer.xr.addEventListener('sessionend', () => {
         drawingUI.classList.add('hidden');
+        hamburger.classList.add('hidden');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         isNewARDrawingReady = false;
         currentMaterial = null;
