@@ -9,6 +9,7 @@
       margin: 0;
       overflow: hidden;
       height: 100%;
+      background-color: #999999;
     }
 
     .hamburger {
@@ -96,11 +97,9 @@
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
 
-    // Flags to manage UI and placement logic
     let isDrawingUIVisible = true;
     let isNewARDrawingReady = false;
 
-    // Resize canvas to window
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -146,18 +145,15 @@
       e.preventDefault();
     });
     canvas.addEventListener('touchend', () => {
-  drawing = false;
+      drawing = false;
+      const dataURL = canvas.toDataURL('image/png');
+      const textureLoader = new THREE.TextureLoader();
 
-  // Trigger the enterAR function logic
-  const dataURL = canvas.toDataURL('image/png');
-  const textureLoader = new THREE.TextureLoader();
-
-  textureLoader.load(dataURL, (texture) => {
-    currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-    isNewARDrawingReady = true;
-  });
-});
-
+      textureLoader.load(dataURL, (texture) => {
+        currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        isNewARDrawingReady = true;
+      });
+    });
 
     // Clear Canvas
     document.getElementById('clearCanvas').addEventListener('click', () => {
@@ -186,11 +182,21 @@
       });
       document.body.appendChild(arButton);
 
+      // 🚨 Listen for session end to clear cache
+      renderer.xr.addEventListener('sessionstart', () => {
+        const session = renderer.xr.getSession();
+        session.addEventListener('end', () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          currentMaterial = null;
+          isNewARDrawingReady = false;
+          console.log('✅ AR session ended — cache cleared.');
+        });
+      });
+
       controller = renderer.xr.getController(0);
       scene.add(controller);
 
       controller.addEventListener('select', () => {
-        // 🔒 Block placement if UI is visible and no new drawing was just made
         if (isDrawingUIVisible && !isNewARDrawingReady) return;
         if (!currentMaterial) return;
 
@@ -204,7 +210,6 @@
         plane.quaternion.copy(camera.quaternion);
         scene.add(plane);
 
-        // ✅ Reset placement flag after use
         isNewARDrawingReady = false;
       });
 
@@ -213,7 +218,7 @@
       });
     }
 
-    // Load canvas to AR texture & allow one placement
+    // Enter AR manually button
     document.getElementById('enterAR').addEventListener('click', () => {
       const dataURL = canvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
@@ -224,7 +229,7 @@
       });
     });
 
-    // Toggle drawing UI & update flag
+    // Hamburger toggle
     const hamburger = document.getElementById('hamburger');
     const drawingUI = document.getElementById('drawingUI');
     hamburger.addEventListener('click', () => {
