@@ -81,6 +81,7 @@
       </div>
       <div class="row">
         <button id="clearCanvas">Clear</button>
+        <button id="deleteAllPlanes">Delete All</button>
       </div>
     </div>
     <canvas id="drawingCanvas"></canvas>
@@ -96,6 +97,7 @@
     const brushSize = document.getElementById('brushSize');
     const drawingUI = document.getElementById('drawingUI');
     const hamburger = document.getElementById('hamburger');
+    const deleteAllPlanesButton = document.getElementById('deleteAllPlanes');
 
     let drawing = false, lastX = 0, lastY = 0;
     let isNewARDrawingReady = false;
@@ -176,6 +178,17 @@
 
     hamburger.addEventListener('click', () => {
       drawingUI.classList.toggle('hidden');
+    });
+
+    deleteAllPlanesButton.addEventListener('click', () => {
+      scene.children = scene.children.filter(obj => {
+        if (obj.isMesh && obj.geometry?.type === 'PlaneGeometry') {
+          scene.remove(obj);
+          return false;
+        }
+        return true;
+      });
+      selectedPlane = null;
     });
 
     // AR Setup
