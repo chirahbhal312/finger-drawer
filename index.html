@@ -9,7 +9,6 @@
       margin: 0;
       overflow: hidden;
       height: 100%;
-      background-color: black;
     }
 
     .hamburger {
@@ -24,8 +23,8 @@
       cursor: pointer;
     }
 
-    #drawingUI.hidden {
-      display: none;
+    #drawingUI {
+      display: none; /* Hidden by default, shown only in AR session */
     }
 
     canvas#drawingCanvas {
@@ -70,10 +69,8 @@
 </head>
 <body>
 
-  <!-- Hamburger menu to toggle the drawing UI -->
-  <div class="hamburger" id="hamburger">☰</div>
+  <div class="hamburger" id="hamburger" style="display:none;">☰</div>
 
-  <!-- Drawing UI panel -->
   <div id="drawingUI">
     <div class="controls">
       <div class="row">
@@ -96,10 +93,13 @@
     const ctx = canvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
+    const hamburger = document.getElementById('hamburger');
+    const drawingUI = document.getElementById('drawingUI');
 
-    let isDrawingUIVisible = true;
+    let isDrawingUIVisible = false;
     let isNewARDrawingReady = false;
 
+    // Resize canvas to window
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -146,18 +146,32 @@
     });
     canvas.addEventListener('touchend', () => {
       drawing = false;
+
+      // Auto trigger enterAR logic
       const dataURL = canvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
-
       textureLoader.load(dataURL, (texture) => {
         currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         isNewARDrawingReady = true;
       });
     });
 
-    // Clear Canvas
     document.getElementById('clearCanvas').addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    document.getElementById('enterAR').addEventListener('click', () => {
+      const dataURL = canvas.toDataURL('image/png');
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(dataURL, (texture) => {
+        currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        isNewARDrawingReady = true;
+      });
+    });
+
+    hamburger.addEventListener('click', () => {
+      drawingUI.classList.toggle('hidden');
+      isDrawingUIVisible = !drawingUI.classList.contains('hidden');
     });
 
     // AR Setup
@@ -182,23 +196,11 @@
       });
       document.body.appendChild(arButton);
 
-      // 🚨 Listen for session end to clear cache
-      renderer.xr.addEventListener('sessionstart', () => {
-        const session = renderer.xr.getSession();
-        session.addEventListener('end', () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          currentMaterial = null;
-          isNewARDrawingReady = false;
-          console.log('✅ AR session ended — cache cleared.');
-        });
-      });
-
       controller = renderer.xr.getController(0);
       scene.add(controller);
 
       controller.addEventListener('select', () => {
-        if (isDrawingUIVisible && !isNewARDrawingReady) return;
-        if (!currentMaterial) return;
+        if (!isNewARDrawingReady || !currentMaterial) return;
 
         const aspect = canvas.width / canvas.height;
         const geometry = new THREE.PlaneGeometry(0.4, 0.4 / aspect);
@@ -213,29 +215,26 @@
         isNewARDrawingReady = false;
       });
 
+      // Show/hide UI when AR session starts/ends
+      renderer.xr.addEventListener('sessionstart', () => {
+        drawingUI.style.display = 'block';
+        hamburger.style.display = 'block';
+
+        const session = renderer.xr.getSession();
+        session.addEventListener('end', () => {
+          drawingUI.style.display = 'none';
+          hamburger.style.display = 'none';
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          currentMaterial = null;
+          isNewARDrawingReady = false;
+          console.log('✅ AR session ended. Cache cleared.');
+        });
+      });
+
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
     }
-
-    // Enter AR manually button
-    document.getElementById('enterAR').addEventListener('click', () => {
-      const dataURL = canvas.toDataURL('image/png');
-      const textureLoader = new THREE.TextureLoader();
-
-      textureLoader.load(dataURL, (texture) => {
-        currentMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        isNewARDrawingReady = true;
-      });
-    });
-
-    // Hamburger toggle
-    const hamburger = document.getElementById('hamburger');
-    const drawingUI = document.getElementById('drawingUI');
-    hamburger.addEventListener('click', () => {
-      drawingUI.classList.toggle('hidden');
-      isDrawingUIVisible = !drawingUI.classList.contains('hidden');
-    });
   </script>
 </body>
 </html>
