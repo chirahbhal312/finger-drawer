@@ -65,8 +65,7 @@
         "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
         "three/examples/jsm/webxr/ARButton.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js"
       }
-    }
-  </script>
+    </script>
 </head>
 <body>
 
@@ -91,8 +90,8 @@
     import * as THREE from 'three';
     import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-    const canvas = document.getElementById('drawingCanvas');
-    const ctx = canvas.getContext('2d');
+    const drawingCanvas = document.getElementById('drawingCanvas');
+    const ctx = drawingCanvas.getContext('2d');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
     const drawingUI = document.getElementById('drawingUI');
@@ -104,8 +103,8 @@
     let currentMaterial = null;
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      drawingCanvas.width = window.innerWidth;
+      drawingCanvas.height = window.innerHeight;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -127,26 +126,26 @@
       [lastX, lastY] = [x, y];
     }
 
-    canvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
-    canvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
-    canvas.addEventListener('mouseup', () => drawing = false);
-    canvas.addEventListener('mouseout', () => drawing = false);
+    drawingCanvas.addEventListener('mousedown', e => startDrawing(e.offsetX, e.offsetY));
+    drawingCanvas.addEventListener('mousemove', e => drawLine(e.offsetX, e.offsetY));
+    drawingCanvas.addEventListener('mouseup', () => drawing = false);
+    drawingCanvas.addEventListener('mouseout', () => drawing = false);
 
-    canvas.addEventListener('touchstart', e => {
+    drawingCanvas.addEventListener('touchstart', e => {
       const touch = e.touches[0];
       startDrawing(touch.clientX, touch.clientY);
       e.preventDefault();
     });
 
-    canvas.addEventListener('touchmove', e => {
+    drawingCanvas.addEventListener('touchmove', e => {
       const touch = e.touches[0];
       drawLine(touch.clientX, touch.clientY);
       e.preventDefault();
     });
 
-    canvas.addEventListener('touchend', () => {
+    drawingCanvas.addEventListener('touchend', () => {
       drawing = false;
-      const dataURL = canvas.toDataURL('image/png');
+      const dataURL = drawingCanvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load(dataURL, texture => {
         currentMaterial = new THREE.MeshBasicMaterial({
@@ -156,15 +155,15 @@
         });
         isNewARDrawingReady = true;
       });
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     });
 
     document.getElementById('clearCanvas').addEventListener('click', () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     });
 
     document.getElementById('enterAR').addEventListener('click', () => {
-      const dataURL = canvas.toDataURL('image/png');
+      const dataURL = drawingCanvas.toDataURL('image/png');
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load(dataURL, texture => {
         currentMaterial = new THREE.MeshBasicMaterial({
@@ -178,17 +177,6 @@
 
     hamburger.addEventListener('click', () => {
       drawingUI.classList.toggle('hidden');
-    });
-
-    deleteAllPlanesButton.addEventListener('click', () => {
-      scene.children = scene.children.filter(obj => {
-        if (obj.isMesh && obj.geometry?.type === 'PlaneGeometry') {
-          scene.remove(obj);
-          return false;
-        }
-        return true;
-      });
-      selectedPlane = null;
     });
 
     // AR Setup
@@ -207,9 +195,14 @@
 
     function initAR() {
       scene = new THREE.Scene();
+      scene.background = null; // Important: Allow camera feed
+
       camera = new THREE.PerspectiveCamera();
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      // WebGL context with XR compatible
+      const webglCanvas = document.createElement('canvas');
+      const context = webglCanvas.getContext('webgl', { xrCompatible: true });
+      renderer = new THREE.WebGLRenderer({ canvas: webglCanvas, context, antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
@@ -224,12 +217,14 @@
       renderer.xr.addEventListener('sessionstart', () => {
         drawingUI.classList.remove('hidden');
         hamburger.classList.remove('hidden');
+        drawingCanvas.style.display = 'none'; // Hide 2D canvas in AR
       });
 
       renderer.xr.addEventListener('sessionend', () => {
         drawingUI.classList.add('hidden');
         hamburger.classList.add('hidden');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawingCanvas.style.display = 'block'; // Show canvas again
+        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         isNewARDrawingReady = false;
         currentMaterial = null;
         selectedPlane = null;
@@ -241,7 +236,7 @@
       controller.addEventListener('select', () => {
         if (!isNewARDrawingReady || !currentMaterial) return;
 
-        const aspect = canvas.width / canvas.height;
+        const aspect = drawingCanvas.width / drawingCanvas.height;
         const geometry = new THREE.PlaneGeometry(0.4, 0.4 / aspect);
         const plane = new THREE.Mesh(geometry, currentMaterial.clone());
 
@@ -261,11 +256,10 @@
         renderer.render(scene, camera);
       });
 
-      // Touch gestures (includes tap-to-select)
+      // Touch gestures
       window.addEventListener('touchstart', e => {
         const touch = e.touches[0];
 
-        // Tap-to-select
         if (drawingUI.classList.contains('hidden') && e.touches.length === 1) {
           const ndc = new THREE.Vector2(
             (touch.clientX / window.innerWidth) * 2 - 1,
@@ -279,7 +273,6 @@
           }
         }
 
-        // Only continue if drawing UI is hidden and we have a selected plane
         if (!selectedPlane || !drawingUI.classList.contains('hidden')) return;
 
         if (e.touches.length === 1) {
@@ -332,6 +325,17 @@
 
       window.addEventListener('touchend', () => {
         isDragging = false;
+      });
+
+      deleteAllPlanesButton.addEventListener('click', () => {
+        scene.children = scene.children.filter(obj => {
+          if (obj.isMesh && obj.geometry?.type === 'PlaneGeometry') {
+            scene.remove(obj);
+            return false;
+          }
+          return true;
+        });
+        selectedPlane = null;
       });
     }
 
