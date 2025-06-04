@@ -261,13 +261,29 @@
         renderer.render(scene, camera);
       });
 
-      // Touch gestures (disabled when drawing UI is visible)
+      // Touch gestures (includes tap-to-select)
       window.addEventListener('touchstart', e => {
+        const touch = e.touches[0];
+
+        // Tap-to-select
+        if (drawingUI.classList.contains('hidden') && e.touches.length === 1) {
+          const ndc = new THREE.Vector2(
+            (touch.clientX / window.innerWidth) * 2 - 1,
+            -(touch.clientY / window.innerHeight) * 2 + 1
+          );
+          raycaster.setFromCamera(ndc, camera);
+          const intersects = raycaster.intersectObjects(scene.children, false);
+          const hit = intersects.find(i => i.object.isMesh && i.object.geometry?.type === 'PlaneGeometry');
+          if (hit) {
+            selectedPlane = hit.object;
+          }
+        }
+
+        // Only continue if drawing UI is hidden and we have a selected plane
         if (!selectedPlane || !drawingUI.classList.contains('hidden')) return;
 
         if (e.touches.length === 1) {
           isDragging = true;
-          const touch = e.touches[0];
           const ndc = new THREE.Vector2(
             (touch.clientX / window.innerWidth) * 2 - 1,
             -(touch.clientY / window.innerHeight) * 2 + 1
