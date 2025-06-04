@@ -261,9 +261,9 @@
         renderer.render(scene, camera);
       });
 
-      // Touch gestures
+      // Touch gestures (disabled when drawing UI is visible)
       window.addEventListener('touchstart', e => {
-        if (!selectedPlane) return;
+        if (!selectedPlane || !drawingUI.classList.contains('hidden')) return;
 
         if (e.touches.length === 1) {
           isDragging = true;
@@ -291,7 +291,7 @@
       });
 
       window.addEventListener('touchmove', e => {
-        if (!selectedPlane) return;
+        if (!selectedPlane || !drawingUI.classList.contains('hidden')) return;
 
         if (e.touches.length === 1 && isDragging) {
           const touch = e.touches[0];
