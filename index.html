@@ -186,6 +186,12 @@
     let rotationStartAngle = 0;
     let initialRotationY = 0;
 
+    let isDragging = false;
+    let raycaster = new THREE.Raycaster();
+    let dragPlane = new THREE.Plane();
+    let dragIntersection = new THREE.Vector3();
+    let dragOffset = new THREE.Vector3();
+
     function initAR() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera();
@@ -242,30 +248,61 @@
         renderer.render(scene, camera);
       });
 
-      // Gesture controls
+      // Touch gestures
       window.addEventListener('touchstart', e => {
-        if (!selectedPlane || e.touches.length < 2) return;
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        initialDistance = Math.hypot(dx, dy);
-        initialScale = selectedPlane.scale.x;
+        if (!selectedPlane) return;
 
-        rotationStartAngle = Math.atan2(dy, dx);
-        initialRotationY = selectedPlane.rotation.y;
+        if (e.touches.length === 1) {
+          isDragging = true;
+          const touch = e.touches[0];
+          const ndc = new THREE.Vector2(
+            (touch.clientX / window.innerWidth) * 2 - 1,
+            -(touch.clientY / window.innerHeight) * 2 + 1
+          );
+          raycaster.setFromCamera(ndc, camera);
+          dragPlane.setFromNormalAndCoplanarPoint(
+            camera.getWorldDirection(new THREE.Vector3()).normalize(),
+            selectedPlane.position
+          );
+          if (raycaster.ray.intersectPlane(dragPlane, dragIntersection)) {
+            dragOffset.copy(dragIntersection).sub(selectedPlane.position);
+          }
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          initialDistance = Math.hypot(dx, dy);
+          initialScale = selectedPlane.scale.x;
+          rotationStartAngle = Math.atan2(dy, dx);
+          initialRotationY = selectedPlane.rotation.y;
+        }
       });
 
       window.addEventListener('touchmove', e => {
-        if (!selectedPlane || e.touches.length < 2) return;
+        if (!selectedPlane) return;
 
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const newDistance = Math.hypot(dx, dy);
+        if (e.touches.length === 1 && isDragging) {
+          const touch = e.touches[0];
+          const ndc = new THREE.Vector2(
+            (touch.clientX / window.innerWidth) * 2 - 1,
+            -(touch.clientY / window.innerHeight) * 2 + 1
+          );
+          raycaster.setFromCamera(ndc, camera);
+          if (raycaster.ray.intersectPlane(dragPlane, dragIntersection)) {
+            selectedPlane.position.copy(dragIntersection.sub(dragOffset));
+          }
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const newDistance = Math.hypot(dx, dy);
+          const scale = initialScale * (newDistance / initialDistance);
+          selectedPlane.scale.set(scale, scale, scale);
+          const angle = Math.atan2(dy, dx);
+          selectedPlane.rotation.y = initialRotationY + (angle - rotationStartAngle);
+        }
+      });
 
-        const scale = initialScale * (newDistance / initialDistance);
-        selectedPlane.scale.set(scale, scale, scale);
-
-        const angle = Math.atan2(dy, dx);
-        selectedPlane.rotation.y = initialRotationY + (angle - rotationStartAngle);
+      window.addEventListener('touchend', () => {
+        isDragging = false;
       });
     }
 
